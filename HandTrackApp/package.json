@@ -1,0 +1,21 @@
+{
+  "name": "handtrackapp",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
+  },
+  "dependencies": {
+    "expo": "~52.0.0",
+    "react": "18.3.1",
+    "react-native": "0.76.5",
+    "@react-native-community/cli": "^15.0.0",
+    "@react-native-community/cli-platform-android": "^15.0.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.0",
+    "typescript": "^5.3.0"
+  }
+}
