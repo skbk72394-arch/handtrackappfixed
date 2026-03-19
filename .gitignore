@@ -1,8 +1,4 @@
 node_modules/
-build/
 .gradle/
-*.apk
-*.aab
-*.zip
 *.log
 .oops
