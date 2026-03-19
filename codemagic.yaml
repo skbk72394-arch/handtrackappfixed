@@ -1,0 +1,21 @@
+workflows:
+  android-release:
+    name: Android Release APK
+    max_build_duration: 60
+    environment:
+      node: 20
+      java: 17
+    scripts:
+      - name: Install deps
+        script: npm install
+      - name: Expo Prebuild
+        script: npx expo prebuild --platform android --clean
+      - name: Create JS Bundle
+        script: |
+          mkdir -p android/app/src/main/assets
+          node node_modules/.bin/react-native bundle --platform android --dev false --entry-file index.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res
+      - name: Build APK
+        script: |
+          cd android && chmod +x gradlew && ./gradlew assembleRelease
+    artifacts:
+      - android/app/build/outputs/apk/release/app-release.apk
