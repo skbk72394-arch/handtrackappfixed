@@ -117,22 +117,15 @@ export default {
       ]
     ],
     
-    // Update configuration
+    // Update configuration - disabled for now
     updates: {
-      fallbackToCacheTimeout: 0,
-      url: "https://u.expo.dev/[your-project-id]"
+      enabled: false,
+      fallbackToCacheTimeout: 0
     },
     
     // Runtime version for updates
     runtimeVersion: {
       policy: "sdkVersion"
-    },
-    
-    // Extra configuration
-    extra: {
-      eas: {
-        projectId: "your-project-id-here"
-      }
     },
     
     // Hooks for custom native code
