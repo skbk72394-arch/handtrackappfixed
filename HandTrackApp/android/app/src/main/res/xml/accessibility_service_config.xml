@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ═══════════════════════════════════════════════════════════════════════════
+  Accessibility Service Configuration for HandTrack
+  
+  This configuration enables the HandTrack app to function as a system-level
+  accessibility service, granting it the capability to:
+  
+  1. Inject touch events (taps, clicks, gestures) anywhere on the screen
+  2. Perform global system actions (back, home, recents, notifications)
+  3. Access window content for context-aware gesture interpretation
+  4. Provide haptic and audio feedback for user interactions
+  
+  SECURITY NOTE:
+  Accessibility services have powerful permissions. This service will appear
+  in the device's Accessibility Settings and must be manually enabled by the
+  user. The service only activates when explicitly started by the user from
+  within the HandTrack app.
+  
+  REQUIRED FOR:
+  - Touch injection (converting hand gestures to screen taps/swipes)
+  - Global navigation (back button, recent apps, home)
+  - Drag and drop operations across all apps
+  ═══════════════════════════════════════════════════════════════════════════
+-->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    
+    <!-- ═══════════════════════════════════════════════════════════════════
+         ACCESSIBILITY EVENT TYPES
+         
+         Defines which types of accessibility events the service wants to
+         receive from the system.
+         ═══════════════════════════════════════════════════════════════════ -->
+    android:accessibilityEventTypes="typeAllMask"
+    
+    <!-- ═══════════════════════════════════════════════════════════════════
+         PACKAGE NAMES
+         
+         Empty string means the service can access events from ALL apps.
+         This is necessary for system-wide gesture control.
+         ═══════════════════════════════════════════════════════════════════ -->
+    android:packageNames=""
+    
+    <!-- ═══════════════════════════════════════════════════════════════════
+         FEEDBACK TYPES
+         
+         Defines the types of feedback the service provides to the user.
+         - Generic: General-purpose feedback
+         - Haptic: Vibration feedback for gesture confirmation
+         - Audible: Optional sound feedback (not currently used)
+         - Visual: On-screen visual feedback (cursor overlay)
+         ═══════════════════════════════════════════════════════════════════ -->
+    android:accessibilityFeedbackType="feedbackGeneric|feedbackHaptic|feedbackVisual"
+    
+    <!-- ═══════════════════════════════════════════════════════════════════
+         NOTIFICATION TIMEOUT
+         
+         Minimum time interval between consecutive accessibility events of
+         the same type in milliseconds. Set to 0 for maximum responsiveness.
+         ═══════════════════════════════════════════════════════════════════ -->
+    android:notificationTimeout="0"
+    
+    <!-- ═══════════════════════════════════════════════════════════════════
+         ACCESSIBILITY FLAGS
+         
+         Critical flags that enable advanced functionality:
+         
+         1. flagDefault (0x00000001)
+            - Basic accessibility service functionality
+         
+         2. flagIncludeNotImportantViews (0x00000002)
+            - Receive events from all views, not just important ones
+         
+         3. flagRequestTouchExplorationMode (0x00000004)
+            - Enable touch exploration mode for gesture interception
+         
+         4. flagRequestFilterKeyEvents (0x00000020)
+            - Intercept and filter keyboard events if needed
+         
+         5. flagRetrieveInteractiveWindows (0x00000040)
+            - Access interactive window information for context
+         
+         6. flagRequestAccessibilityButton (0x00000100)
+            - Show accessibility button in navigation bar (Android 8.0+)
+         
+         7. flagServiceHandlesDoubleTap (0x00000800)
+            - Service handles double-tap gestures directly
+         
+         8. flagRequestMultiFingerGestures (0x00001000)
+            - Enable multi-finger gesture recognition (Android 13+)
+         
+         9. flagRequestTwoFingerPassthrough (0x00002000)
+            - Allow two-finger passthrough gestures (Android 13+)
+         
+         Combined flags value for maximum compatibility and functionality.
+         ═══════════════════════════════════════════════════════════════════ -->
+    android:accessibilityFlags="flagDefault|flagIncludeNotImportantViews|flagRequestTouchExplorationMode|flagRequestFilterKeyEvents|flagRetrieveInteractiveWindows|flagRequestAccessibilityButton"
+    
+    <!-- ═══════════════════════════════════════════════════════════════════
+         CAPABILITY FLAGS
+         
+         Declares the capabilities of the accessibility service:
+         
+         1. canRetrieveWindowContent (0x00000001)
+            - Access window content and UI hierarchy
+            - Required for context-aware gestures
+         
+         2. canRequestTouchExplorationMode (0x00000004)
+            - Request touch exploration for gesture interpretation
+         
+         3. canRequestFilterKeyEvents (0x00000020)
+            - Request keyboard event filtering
+         
+         4. canPerformGestures (0x00000080)
+            - CRITICAL: Enables gesture injection and touch simulation
+            - This is the key capability for converting hand gestures to touches
+            - Available on Android 7.0 (API 24) and above
+         
+         5. canTakeScreenshot (0x00000100)
+            - Take screenshots (not currently used but available)
+         
+         Combined capability flags.
+         ═══════════════════════════════════════════════════════════════════ -->
+    android:canRetrieveWindowContent="true"
+    android:canRequestTouchExplorationMode="true"
+    android:canRequestFilterKeyEvents="true"
+    android:canPerformGestures="true"
+    android:canTakeScreenshot="false"
+    
+    <!-- ═══════════════════════════════════════════════════════════════════
+         SERVICE DESCRIPTION
+         
+         User-visible description shown in Accessibility Settings.
+         Should clearly explain what the service does and why it needs
+         accessibility permissions.
+         ═══════════════════════════════════════════════════════════════════ -->
+    android:description="@string/accessibility_service_description"
+    
+    <!-- ═══════════════════════════════════════════════════════════════════
+         SERVICE SUMMARY (Android 11+)
+         
+         Short summary shown in the accessibility service list.
+         ═══════════════════════════════════════════════════════════════════ -->
+    android:summary="Hand gesture control for touchless interaction"
+    
+    <!-- ═══════════════════════════════════════════════════════════════════
+         SETTINGS ACTIVITY
+         
+         Optional: Activity to launch when user taps settings in
+         Accessibility Settings. Currently not implemented, but can be
+         added to allow in-service configuration.
+         ═══════════════════════════════════════════════════════════════════ -->
+    android:settingsActivity=""
+    
+    <!-- ═══════════════════════════════════════════════════════════════════
+         INTERACTIVE UI TIMEOUT
+         
+         Timeout for interactive UI controls in milliseconds.
+         Longer timeout gives users more time to interact with overlays.
+         ═══════════════════════════════════════════════════════════════════ -->
+    android:interactiveUiTimeout="5000"
+    
+    <!-- ═══════════════════════════════════════════════════════════════════
+         NON-INTERACTIVE UI TIMEOUT
+         
+         Timeout for non-interactive UI elements in milliseconds.
+         ═══════════════════════════════════════════════════════════════════ -->
+    android:nonInteractiveUiTimeout="0" />

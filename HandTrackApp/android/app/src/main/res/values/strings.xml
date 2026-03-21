@@ -1,3 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-  <string name="app_name">handtrackapp</string>
+    <string name="app_name">HandTrack</string>
+    
+    <!-- Accessibility Service Description -->
+    <string name="accessibility_service_description">
+        HandTrack Gesture Controller allows you to control your device using hand gestures captured by your camera.\n\n
+        
+        This accessibility service enables:\n
+        • Converting hand gestures into touch events (taps, swipes, scrolls)\n
+        • Performing system actions (back, home, recent apps)\n
+        • Controlling your device without touching the screen\n\n
+        
+        PERMISSIONS REQUIRED:\n
+        • Access to screen content: To understand context for gesture actions\n
+        • Touch injection: To convert hand gestures into actual touches\n
+        • Global actions: To perform system navigation\n\n
+        
+        PRIVACY:\n
+        HandTrack processes all gesture data locally on your device. No data is sent to external servers.\n\n
+        
+        To use HandTrack:\n
+        1. Enable this accessibility service\n
+        2. Grant camera and overlay permissions\n
+        3. Start hand tracking from the app\n
+        4. Use hand gestures to control your device\n\n
+        
+        You can disable this service at any time from Accessibility Settings.
+    </string>
 </resources>
