@@ -13,16 +13,22 @@ import {
   ScrollView,
   Platform,
   NativeModules,
+  PermissionsAndroid,
 } from 'react-native';
 import GestureGuideScreen from './src/screens/GestureGuideScreen';
 import AirKeyboard from './src/components/AirKeyboard';
 import { useHandGestures, GestureEvent } from './src/hooks/useHandGestures';
 
-const { CursorControlModule, HandTrackingModule } = NativeModules;
+const { CursorControlModule, HandTrackingModule, AccessibilityServiceModule } = NativeModules;
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
 type AppStatus = 'idle' | 'running' | 'permission_required';
+type PermissionStatus = {
+  camera: boolean;
+  overlay: boolean;
+  accessibility: boolean;
+};
 
 // ── Component ──────────────────────────────────────────────────────────────
 
@@ -34,6 +40,12 @@ const App: React.FC = () => {
   const [lastGesture, setLastGesture] = useState<string>('–');
   const [gestureCount, setGestureCount] = useState(0);
   const [gesturesEnabled, setGesturesEnabled] = useState(true);
+  const [permissionStatus, setPermissionStatus] = useState<PermissionStatus>({
+    camera: false,
+    overlay: false,
+    accessibility: false,
+  });
+  const [isCheckingPermissions, setIsCheckingPermissions] = useState(true);
 
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
 
@@ -71,46 +83,260 @@ const App: React.FC = () => {
     }).start();
   }, []);
 
-  // ── Permission check ──────────────────────────────────────────────────────
-  const checkPermissions = useCallback(async () => {
+  // ── Permission checking functions ─────────────────────────────────────────
+
+  /**
+   * Check Camera Permission
+   */
+  const checkCameraPermission = async (): Promise<boolean> => {
     if (Platform.OS !== 'android') return true;
+    
     try {
-      const hasOverlay = await CursorControlModule?.checkOverlayPermission();
-      if (!hasOverlay) {
-        setStatus('permission_required');
-        return false;
-      }
-      return true;
-    } catch {
-      return true; // dev fallback
+      const granted = await PermissionsAndroid.check(
+        PermissionsAndroid.PERMISSIONS.CAMERA
+      );
+      return granted;
+    } catch (err) {
+      console.warn('Error checking camera permission:', err);
+      return false;
     }
+  };
+
+  /**
+   * Request Camera Permission
+   */
+  const requestCameraPermission = async (): Promise<boolean> => {
+    if (Platform.OS !== 'android') return true;
+
+    try {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.CAMERA,
+        {
+          title: 'Camera Permission',
+          message: 'HandTrack needs camera access to detect hand gestures and track hand movements.',
+          buttonNeutral: 'Ask Me Later',
+          buttonNegative: 'Cancel',
+          buttonPositive: 'OK',
+        }
+      );
+      return granted === PermissionsAndroid.RESULTS.GRANTED;
+    } catch (err) {
+      console.warn('Error requesting camera permission:', err);
+      return false;
+    }
+  };
+
+  /**
+   * Check Overlay Permission (SYSTEM_ALERT_WINDOW)
+   */
+  const checkOverlayPermission = async (): Promise<boolean> => {
+    if (Platform.OS !== 'android') return true;
+
+    try {
+      if (CursorControlModule?.checkOverlayPermission) {
+        const hasPermission = await CursorControlModule.checkOverlayPermission();
+        return hasPermission;
+      }
+      return true; // Assume granted if module not available
+    } catch (err) {
+      console.warn('Error checking overlay permission:', err);
+      return false;
+    }
+  };
+
+  /**
+   * Request Overlay Permission
+   */
+  const requestOverlayPermission = async (): Promise<void> => {
+    if (Platform.OS !== 'android') return;
+
+    try {
+      if (CursorControlModule?.requestOverlayPermission) {
+        await CursorControlModule.requestOverlayPermission();
+      }
+    } catch (err) {
+      console.warn('Error requesting overlay permission:', err);
+    }
+  };
+
+  /**
+   * Check Accessibility Permission
+   */
+  const checkAccessibilityPermission = async (): Promise<boolean> => {
+    if (Platform.OS !== 'android') return true;
+
+    try {
+      if (AccessibilityServiceModule?.checkAccessibilityPermission) {
+        const hasPermission = await AccessibilityServiceModule.checkAccessibilityPermission();
+        return hasPermission;
+      }
+      return false;
+    } catch (err) {
+      console.warn('Error checking accessibility permission:', err);
+      return false;
+    }
+  };
+
+  /**
+   * Open Accessibility Settings
+   */
+  const openAccessibilitySettings = async (): Promise<void> => {
+    if (Platform.OS !== 'android') return;
+
+    try {
+      if (AccessibilityServiceModule?.openAccessibilitySettings) {
+        await AccessibilityServiceModule.openAccessibilitySettings();
+      }
+    } catch (err) {
+      console.warn('Error opening accessibility settings:', err);
+      Alert.alert(
+        'Error',
+        'Could not open accessibility settings. Please enable the HandTrack Gesture Service manually in Settings > Accessibility.'
+      );
+    }
+  };
+
+  /**
+   * Check all permissions on mount
+   */
+  const checkAllPermissions = useCallback(async () => {
+    setIsCheckingPermissions(true);
+    
+    try {
+      const [camera, overlay, accessibility] = await Promise.all([
+        checkCameraPermission(),
+        checkOverlayPermission(),
+        checkAccessibilityPermission(),
+      ]);
+
+      setPermissionStatus({
+        camera,
+        overlay,
+        accessibility,
+      });
+
+      console.log('Permission Status:', { camera, overlay, accessibility });
+    } catch (err) {
+      console.error('Error checking permissions:', err);
+    } finally {
+      setIsCheckingPermissions(false);
+    }
+  }, []);
+
+  /**
+   * Request all required permissions
+   */
+  const requestAllPermissions = useCallback(async () => {
+    try {
+      // Request Camera Permission
+      if (!permissionStatus.camera) {
+        const cameraGranted = await requestCameraPermission();
+        setPermissionStatus(prev => ({ ...prev, camera: cameraGranted }));
+        
+        if (!cameraGranted) {
+          Alert.alert(
+            'Camera Permission Required',
+            'HandTrack needs camera access to detect hand gestures. Please grant camera permission to use this app.',
+            [{ text: 'OK' }]
+          );
+          return;
+        }
+      }
+
+      // Request Overlay Permission
+      if (!permissionStatus.overlay) {
+        Alert.alert(
+          'Overlay Permission Required',
+          'HandTrack needs permission to display over other apps to show the cursor overlay. Please grant this permission in the next screen.',
+          [
+            {
+              text: 'Open Settings',
+              onPress: async () => {
+                await requestOverlayPermission();
+                // Recheck after 2 seconds
+                setTimeout(checkAllPermissions, 2000);
+              },
+            },
+            { text: 'Cancel', style: 'cancel' },
+          ]
+        );
+        return;
+      }
+
+      // Request Accessibility Permission
+      if (!permissionStatus.accessibility) {
+        Alert.alert(
+          'Accessibility Service Required',
+          'HandTrack needs accessibility service to perform gesture actions. Please enable "HandTrack Gesture Service" in Accessibility Settings.',
+          [
+            {
+              text: 'Open Settings',
+              onPress: async () => {
+                await openAccessibilitySettings();
+                // Recheck after 2 seconds
+                setTimeout(checkAllPermissions, 2000);
+              },
+            },
+            { text: 'Cancel', style: 'cancel' },
+          ]
+        );
+        return;
+      }
+
+      Alert.alert(
+        'All Permissions Granted',
+        'All required permissions have been granted. You can now start using HandTrack!',
+        [{ text: 'OK' }]
+      );
+    } catch (err) {
+      console.error('Error requesting permissions:', err);
+      Alert.alert('Error', 'Failed to request permissions. Please try again.');
+    }
+  }, [permissionStatus, checkAllPermissions]);
+
+  // ── Check permissions on mount ────────────────────────────────────────────
+  useEffect(() => {
+    // Small delay to ensure native modules are ready
+    const timer = setTimeout(() => {
+      checkAllPermissions();
+    }, 500);
+
+    return () => clearTimeout(timer);
   }, []);
 
   // ── Start / Stop cursor + hand tracking ───────────────────────────────────
   const handleStart = useCallback(async () => {
-    const ok = await checkPermissions();
-    if (!ok) {
-      Alert.alert(
-        'Overlay Permission Needed',
-        'HandTrack needs "Display over other apps" permission to show the cursor. Open Settings now?',
-        [
-          {
-            text: 'Open Settings',
-            onPress: () => CursorControlModule?.requestOverlayPermission(),
-          },
-          { text: 'Cancel', style: 'cancel' },
-        ],
-      );
+    // Check all permissions before starting
+    const allGranted = permissionStatus.camera && permissionStatus.overlay && permissionStatus.accessibility;
+    
+    if (!allGranted) {
+      setStatus('permission_required');
+      await requestAllPermissions();
       return;
     }
-    CursorControlModule?.startCursor();
-    setStatus('running');
-  }, [checkPermissions]);
+
+    try {
+      CursorControlModule?.startCursor();
+      setStatus('running');
+    } catch (err) {
+      console.error('Error starting cursor:', err);
+      Alert.alert('Error', 'Failed to start cursor. Please try again.');
+    }
+  }, [permissionStatus, requestAllPermissions]);
 
   const handleStop = useCallback(() => {
-    CursorControlModule?.stopCursor();
-    setStatus('idle');
+    try {
+      CursorControlModule?.stopCursor();
+      setStatus('idle');
+    } catch (err) {
+      console.error('Error stopping cursor:', err);
+    }
   }, []);
+
+  // ── Get permission status badge color ─────────────────────────────────────
+  const getPermissionBadgeColor = (granted: boolean) => {
+    return granted ? '#27AE60' : '#E74C3C';
+  };
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -142,6 +368,61 @@ const App: React.FC = () => {
           >
             <Text style={styles.gestureFlashText}>{lastGesture}</Text>
           </Animated.View>
+
+          {/* ── Permission Status Card ── */}
+          {!isCheckingPermissions && (
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Permission Status</Text>
+              <Text style={styles.cardDesc}>
+                Grant all permissions below to use HandTrack features
+              </Text>
+
+              <View style={styles.permissionList}>
+                <View style={styles.permissionRow}>
+                  <Text style={styles.permissionLabel}>📷 Camera</Text>
+                  <View style={[styles.permissionBadge, { backgroundColor: getPermissionBadgeColor(permissionStatus.camera) }]}>
+                    <Text style={styles.permissionBadgeText}>
+                      {permissionStatus.camera ? 'Granted' : 'Required'}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.permissionRow}>
+                  <Text style={styles.permissionLabel}>🪟 Overlay</Text>
+                  <View style={[styles.permissionBadge, { backgroundColor: getPermissionBadgeColor(permissionStatus.overlay) }]}>
+                    <Text style={styles.permissionBadgeText}>
+                      {permissionStatus.overlay ? 'Granted' : 'Required'}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.permissionRow}>
+                  <Text style={styles.permissionLabel}>♿ Accessibility</Text>
+                  <View style={[styles.permissionBadge, { backgroundColor: getPermissionBadgeColor(permissionStatus.accessibility) }]}>
+                    <Text style={styles.permissionBadgeText}>
+                      {permissionStatus.accessibility ? 'Granted' : 'Required'}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {!(permissionStatus.camera && permissionStatus.overlay && permissionStatus.accessibility) && (
+                <TouchableOpacity
+                  style={styles.buttonPermission}
+                  onPress={requestAllPermissions}
+                >
+                  <Text style={styles.buttonText}>Grant Permissions</Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
+                style={styles.buttonRefresh}
+                onPress={checkAllPermissions}
+              >
+                <Text style={styles.buttonRefreshText}>🔄 Refresh Status</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           {/* ── Main control card ── */}
           <View style={styles.card}>
@@ -364,6 +645,56 @@ const styles = StyleSheet.create({
     color: '#8A8FA8',
     lineHeight: 20,
     marginBottom: 14,
+  },
+  permissionList: {
+    gap: 10,
+    marginBottom: 14,
+  },
+  permissionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  permissionLabel: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  permissionBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  permissionBadgeText: {
+    fontSize: 11,
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  buttonPermission: {
+    backgroundColor: '#4F8EF7',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  buttonRefresh: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  buttonRefreshText: {
+    color: '#8A8FA8',
+    fontSize: 13,
+    fontWeight: '600',
   },
   controlRow: {
     gap: 10,
