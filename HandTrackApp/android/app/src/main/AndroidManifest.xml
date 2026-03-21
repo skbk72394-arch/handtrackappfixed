@@ -1,31 +1,159 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-  <uses-permission android:name="android.permission.INTERNET"/>
-  <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
-  <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
-  <uses-permission android:name="android.permission.VIBRATE"/>
-  <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+  
+  <!-- ════════════════════════════════════════════════════════════════════════
+       PERMISSIONS - Critical for Hand Tracking Functionality
+       ════════════════════════════════════════════════════════════════════════ -->
+  
+  <!-- Camera permission for hand tracking -->
+  <uses-permission android:name="android.permission.CAMERA" />
+  <uses-feature android:name="android.hardware.camera" android:required="true" />
+  <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+  
+  <!-- Overlay permission for floating cursor -->
+  <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+  
+  <!-- Internet access -->
+  <uses-permission android:name="android.permission.INTERNET" />
+  
+  <!-- Storage permissions -->
+  <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+  <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+  
+  <!-- Vibration feedback -->
+  <uses-permission android:name="android.permission.VIBRATE" />
+  
+  <!-- Wake lock to prevent screen timeout during tracking -->
+  <uses-permission android:name="android.permission.WAKE_LOCK" />
+  
+  <!-- Foreground service permissions for continuous tracking -->
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+  
+  <!-- Accessibility service permission (bound by service declaration) -->
+  <uses-permission android:name="android.permission.BIND_ACCESSIBILITY_SERVICE" />
+  
+  <!-- Query capabilities -->
   <queries>
     <intent>
-      <action android:name="android.intent.action.VIEW"/>
-      <category android:name="android.intent.category.BROWSABLE"/>
-      <data android:scheme="https"/>
+      <action android:name="android.intent.action.VIEW" />
+      <category android:name="android.intent.category.BROWSABLE" />
+      <data android:scheme="https" />
+    </intent>
+    <intent>
+      <action android:name="android.settings.ACCESSIBILITY_SETTINGS" />
+    </intent>
+    <intent>
+      <action android:name="android.settings.action.MANAGE_OVERLAY_PERMISSION" />
     </intent>
   </queries>
-  <application android:name=".MainApplication" android:label="@string/app_name" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round" android:allowBackup="true" android:theme="@style/AppTheme" android:supportsRtl="true">
-    <meta-data android:name="expo.modules.updates.ENABLED" android:value="false"/>
-    <meta-data android:name="expo.modules.updates.EXPO_UPDATES_CHECK_ON_LAUNCH" android:value="ALWAYS"/>
-    <meta-data android:name="expo.modules.updates.EXPO_UPDATES_LAUNCH_WAIT_MS" android:value="0"/>
-    <activity android:name=".MainActivity" android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode" android:launchMode="singleTask" android:windowSoftInputMode="adjustResize" android:theme="@style/Theme.App.SplashScreen" android:exported="true">
+  
+  <!-- ════════════════════════════════════════════════════════════════════════
+       APPLICATION CONFIGURATION
+       ════════════════════════════════════════════════════════════════════════ -->
+  
+  <application
+    android:name=".MainApplication"
+    android:label="@string/app_name"
+    android:icon="@mipmap/ic_launcher"
+    android:roundIcon="@mipmap/ic_launcher_round"
+    android:allowBackup="true"
+    android:theme="@style/AppTheme"
+    android:supportsRtl="true"
+    android:hardwareAccelerated="true"
+    android:largeHeap="true"
+    android:usesCleartextTraffic="true">
+    
+    <!-- ══════════════════════════════════════════════════════════════════
+         Expo Updates Configuration
+         ══════════════════════════════════════════════════════════════════ -->
+    <meta-data android:name="expo.modules.updates.ENABLED" android:value="false" />
+    <meta-data android:name="expo.modules.updates.EXPO_UPDATES_CHECK_ON_LAUNCH" android:value="ALWAYS" />
+    <meta-data android:name="expo.modules.updates.EXPO_UPDATES_LAUNCH_WAIT_MS" android:value="0" />
+    
+    <!-- ══════════════════════════════════════════════════════════════════
+         Main Activity - App Entry Point
+         ══════════════════════════════════════════════════════════════════ -->
+    <activity
+      android:name=".MainActivity"
+      android:label="@string/app_name"
+      android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode"
+      android:launchMode="singleTask"
+      android:windowSoftInputMode="adjustResize"
+      android:theme="@style/Theme.App.SplashScreen"
+      android:exported="true"
+      android:screenOrientation="portrait">
+      
+      <!-- Main launcher intent -->
       <intent-filter>
-        <action android:name="android.intent.action.MAIN"/>
-        <category android:name="android.intent.category.LAUNCHER"/>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
       </intent-filter>
+      
+      <!-- Deep linking support -->
       <intent-filter>
-        <action android:name="android.intent.action.VIEW"/>
-        <category android:name="android.intent.category.DEFAULT"/>
-        <category android:name="android.intent.category.BROWSABLE"/>
-        <data android:scheme="com.anonymous.handtrackapp"/>
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data android:scheme="com.anonymous.handtrackapp" />
       </intent-filter>
     </activity>
+    
+    <!-- ══════════════════════════════════════════════════════════════════
+         Accessibility Service - Critical for Touch Injection
+         
+         This service enables the app to:
+         - Inject touch events (clicks, swipes, scrolls)
+         - Perform global actions (back, home, recents)
+         - Access screen content for context-aware gestures
+         
+         The service MUST be enabled manually by the user in:
+         Settings > Accessibility > Downloaded Services > HandTrack
+         ══════════════════════════════════════════════════════════════════ -->
+    <service
+      android:name=".HandTrackAccessibilityService"
+      android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+      android:exported="true"
+      android:enabled="true"
+      android:label="HandTrack Gesture Controller">
+      
+      <intent-filter>
+        <action android:name="android.accessibilityservice.AccessibilityService" />
+      </intent-filter>
+      
+      <!-- Accessibility service configuration -->
+      <meta-data
+        android:name="android.accessibilityservice"
+        android:resource="@xml/accessibility_service_config" />
+    </service>
+    
+    <!-- ══════════════════════════════════════════════════════════════════
+         Foreground Service for Camera Tracking
+         
+         This service keeps hand tracking running in the background
+         without being killed by the system.
+         ══════════════════════════════════════════════════════════════════ -->
+    <service
+      android:name=".HandTrackingForegroundService"
+      android:enabled="true"
+      android:exported="false"
+      android:foregroundServiceType="camera|specialUse">
+      <property
+        android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+        android:value="Hand gesture tracking for accessibility" />
+    </service>
+    
+    <!-- ══════════════════════════════════════════════════════════════════
+         Overlay Service for Floating Cursor
+         
+         This service displays a floating cursor overlay on top of all apps.
+         Requires SYSTEM_ALERT_WINDOW permission.
+         ══════════════════════════════════════════════════════════════════ -->
+    <service
+      android:name=".CursorOverlayService"
+      android:enabled="true"
+      android:exported="false" />
+  
   </application>
+  
 </manifest>
